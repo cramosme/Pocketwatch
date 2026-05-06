@@ -5,21 +5,26 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
-         colors: {
-            primary: "#091C3C", // Main color for the app, corresponds to the background
-            section: "#162C53", // Color for sections and cards, such as card in profile page
-            active_icon: "#3377F4", // Color for active tab, some headers, as well as buttons
-            inactive_icon: "#FFFFFF", // Color for inactive tab icons as well as user text box in chat tab
-            outages: "#19376D", // Color of the card used in the outages page that shows legend
-            text_main: "#F7FDFD", // Main color of text
-            inactive_text: "#A0B3D3", // This is the color of inactive text, such as hidden info, or preferences in the profile page
-            energi: "#294068", // This is the color of the text box for the chatbot Energi
-         },
-         fontFamily: {
-            sans: ['Inter_400Regular'], // This is the font family for the app, we use Inter as our main font
-            semibold: ['Inter_600SemiBold'], // This is the font family for semi bold text
-            bold: ['Inter_700Bold'], // This is the font family for bold text
-         },
+      colors: {
+        background: '#0E1D2D',      // Main app background
+        section: '#1A2B3C',         // Cards and section backgrounds
+        modal: '#243447',           // Modals and bottom sheets
+        divider: '#2A3B55',         // Borders and dividers
+
+        accent: '#D4AF37',          // Buttons, active states, highlights
+        success: '#22C55E',         // Positive balances, completed actions
+        danger: '#EF4444',          // Errors, negative balances, overspend
+        warning: '#F59E0B',         // Low balance alerts, due date warnings
+        mint: '#E6F7EF',            // Subtle success background tint
+
+        text_main: '#F7FDFD',       // Primary text
+        inactive_text: '#A0B3D3',   // Secondary text, labels, inactive states
+      },
+      fontFamily: {
+        sans: ['Poppins_400Regular'],       // Default body text
+        semibold: ['Poppins_600SemiBold'],  // Subheadings, labels
+        bold: ['Poppins_700Bold'],          // Headings, emphasis
+      },
     },
   },
   plugins: [],
