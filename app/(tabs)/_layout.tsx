@@ -9,5 +9,5 @@ export default function TabLayout() {
       <Tabs.Screen name="transfers" />
       <Tabs.Screen name="settings" />
     </Tabs>
-  )
+  );
 }
