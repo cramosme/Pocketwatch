@@ -40,8 +40,9 @@ export default function Login() {
         setError(customError(error.message));
       }
 
-    } catch ( err: any ){ // Catch any unexpected errors
-      setError(err instanceof Error ? err.message : "Something went wrong");
+    } catch ( err: unknown ){ // Catch any unexpected errors
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
     }
     finally{
       // No redirect needed. AuthProvider detects session change and _layout.tsx handles it
@@ -130,7 +131,7 @@ export default function Login() {
 
         <TouchableOpacity onPress={() => router.replace('/(auth)/signup')}>
           <Text className="text-center text-accent font-sans text-base">
-            Don't have an account? Sign Up
+            {"Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
