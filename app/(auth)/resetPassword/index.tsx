@@ -38,8 +38,9 @@ export default function ResetPassword(){
       // Render custom alert on success
       setShowSuccess(true);
 
-    } catch (err: any){
-      setError(err instanceof Error ? err.message : "Something went wrong"); // Catch unexpected errors
+    } catch (err: unknown){
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
     } 
     finally{
       setLoading(false);
@@ -65,7 +66,7 @@ export default function ResetPassword(){
           onChangeText={setEmail}
           keyboard={"email-address"}
           keyType="done"
-          onSubmitEditing={ validEmail ? handleReset : () => {} }
+          onSubmitEditing={ validEmail ? handleReset : undefined }
         />
 
         {/* Button disabled until user enters valid email */}
@@ -81,6 +82,12 @@ export default function ResetPassword(){
             : <Text className="text-background font-semibold text-xl">Reset Password</Text>
           }
         </TouchableOpacity>
+
+        {error && (
+          <Text className="text-danger font-sans text-center mt-3">
+            {error}
+          </Text>
+        )}
 
         {/* This will only render if was successful. Hitting ok redirects to login */}
         <CustomAlert

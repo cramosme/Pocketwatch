@@ -1,10 +1,39 @@
-import { Router } from 'express'
+import express, { Router } from 'express';
+import { supabaseAdmin } from "../database/supabase";
+import { requireAuth } from "./middleware/auth";
 
-// Central router — all controllers mount here
+// Central router, controllers mount here
 // Each controller groups related endpoints (plaid, webhooks, transactions etc)
-const router = Router()
+const router: Router = express.Router();
 
-// Controllers will be mounted here as we build each phase
-// e.g. router.use('/plaid', plaidRouter)
+// GET /api/me - returns the current user's profile
+router.get("/me", requireAuth, async( req, res, next) => {
+  try{
+    const {data, error} = await supabaseAdmin
+      .from("profiles")
+      .select("id, name, pay_frequency, estimated_monthly_income, next_payday, setup_complete")
+      .eq("id", req.userId)
+      .single()
 
-export default router
+    if( error ){
+      next(error);
+      return;
+    }
+
+    if( !data ){
+      res.status(404).json({
+        error: {
+          code: "PROFILE_NOT_FOUND",
+          message: "Profile not found for this user:,"
+        },
+      });
+      return;
+    }
+
+    res.json(data);
+  } catch (err){
+    next(err);
+  }
+});
+
+export default router;

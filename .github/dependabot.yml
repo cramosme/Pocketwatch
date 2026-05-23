@@ -1,0 +1,60 @@
+# .github/dependabot.yml
+# Configures automated dependency update PRs across the repo.
+# Security patches come through Dependabot alerts separately
+# this file handles routine version bumps to keep dependencies from going stale.
+
+version: 2;
+updates:
+  # Mobile app dependencies (Expo / React Native) at repo root
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "mobile"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # Group minor and patch updates into one PR per ecosystem
+      # to avoid drowning in individual bump PRs
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Backend dependencies (Express)
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions workflow dependencies
+  # Keeps actions/checkout, setup-node, codeql-action, etc. current
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

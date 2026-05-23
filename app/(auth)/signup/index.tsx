@@ -60,8 +60,9 @@ export default function Signup() {
       }
 
       //AuthProvider handles redirect on session change, no need to include here
-    } catch( err: any ){
-      setError(err instanceof Error ? err.message : "Something went wrong"); // catch unexpected errors
+    } catch( err: unknown){
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setError(message); // catch unexpected errors
     }
     finally{
       // Always run regardless of succcess or failure
@@ -200,7 +201,7 @@ export default function Signup() {
             keyboard="default"
             isPassword={!confirmationIsVisible}
             inputRef={confirmRef}
-            onSubmitEditing={ isReady ? handleSignup : () => {} } // If it's not ready, done wont make call since we know it will fail
+            onSubmitEditing={ isReady ? handleSignup : undefined } // If it's not ready, done wont make call since we know it will fail
             alertIcon={
               <TouchableOpacity
                 onPress={() => setConfirmationIsVisible(!confirmationIsVisible)}
