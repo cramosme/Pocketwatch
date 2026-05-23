@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router } from 'expo-router';
 import { AuthProvider, useAuth } from '../components/shared/AuthProvider';
 import '../globals.css';
@@ -12,6 +13,9 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync(); // keep splash screen up while fonts load
+
+// Create the client outside the component so it isn't recreated on every render
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -30,12 +34,14 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        {/* AppEntry is a separate component so useAuth can consume AuthProvider above it */}
-        <AppEntry />
-      </AuthProvider>
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          {/* AppEntry is a separate component so useAuth can consume AuthProvider above it */}
+          <AppEntry />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }
 
