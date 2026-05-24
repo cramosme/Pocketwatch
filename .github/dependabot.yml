@@ -3,7 +3,7 @@
 # Security patches come through Dependabot alerts separately
 # this file handles routine version bumps to keep dependencies from going stale.
 
-version: 2;
+version: 2
 updates:
   # Mobile app dependencies (Expo / React Native) at repo root
   - package-ecosystem: "npm"
