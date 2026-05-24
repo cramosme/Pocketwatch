@@ -3,7 +3,7 @@
 # Security patches come through Dependabot alerts separately
 # this file handles routine version bumps to keep dependencies from going stale.
 
-version: 2;
+version: 2
 updates:
   # Mobile app dependencies (Expo / React Native) at repo root
   - package-ecosystem: "npm"
@@ -25,6 +25,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # Nested under Expo SDK — can't be upgraded independently.
+      # Will be resolved when Expo SDK is upgraded.
+      - dependency-name: "postcss"
+      - dependency-name: "qs"
 
   # Backend dependencies (Express)
   - package-ecosystem: "npm"
