@@ -2,6 +2,8 @@
 // Metro bundler handles these at runtime, but tsc needs explicit
 // declarations to understand the import.
 
+declare module "*.css";
+
 declare module "*.png" {
   const value: number;
   export default value;
