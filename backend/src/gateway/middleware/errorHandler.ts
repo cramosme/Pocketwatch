@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { ServiceError } from "../../lib/errors";
 
 // Catches any uncaught error from routes and middleware
 // Logs full details server-side for debugging while also
@@ -10,7 +11,15 @@ export function errorHandler(
   _next: NextFunction
 ): void {
 
-  // Log to the server
+  // Errors purposefully thrown carry safe code and status, so surface them
+  if( err instanceof ServiceError ) {
+    res.status(err.status).json({
+      error: { code: err.code, message: err.message },
+    });
+    return;
+  }
+
+  // Log to the server anything unanticipated
   console.error("Unhandled error:", {
     path: req.path,
     method: req.method,

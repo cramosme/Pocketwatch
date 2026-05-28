@@ -7,6 +7,7 @@ import {
 } from "plaid";
 import { supabaseAdmin } from "../../database/supabase";
 import { encrypt, decrypt } from "../../lib/crypto";
+import { ServiceError } from "../../lib/errors";
 import type {
   PlaidTransaction,
   PlaidAccount,
@@ -39,15 +40,6 @@ const config = new Configuration({
 });
 
 const plaid = new PlaidApi(config);
-
-// Custom error shape so controllers can match by code instead of parsing
-// Plaid's verbose error response. Extends error so it preserves strack traces
-class ServiceError extends Error {
-  constructor( public code: string, message: string){
-    super(message);
-    this.name = "ServiceError";
-  }
-}
 
 // Internal helper that pulls encrypted access token from DB, decrypts,
 // and returns the plaintext to the calling function. Plaintext discarded
