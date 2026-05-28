@@ -1,6 +1,11 @@
 import express, { Router } from 'express';
 import { supabaseAdmin } from "../database/supabase";
 import { requireAuth } from "./middleware/auth";
+import {
+  createLinkTokenHandler,
+  exchangePublicTokenHandler,
+} from "./controllers/plaid.controller";
+import { plaidLimiter } from "./middleware/rateLimiter";
 
 // Central router, controllers mount here
 // Each controller groups related endpoints (plaid, webhooks, transactions etc)
@@ -35,5 +40,9 @@ router.get("/me", requireAuth, async( req, res, next) => {
     next(err);
   }
 });
+
+// Plaid endpoints
+router.post("/plaid/link-token", plaidLimiter, requireAuth, createLinkTokenHandler);
+router.post("/plaid/exchange-public-token", plaidLimiter, requireAuth, exchangePublicTokenHandler);
 
 export default router;
