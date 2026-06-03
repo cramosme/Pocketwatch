@@ -4,6 +4,7 @@ import {
   PlaidEnvironments,
   Products,
   CountryCode,
+  JWKPublicKey,
 } from "plaid";
 import { supabaseAdmin } from "../../database/supabase";
 import { encrypt, decrypt } from "../../lib/crypto";
@@ -228,5 +229,17 @@ export async function removeItem(plaidItemId: string): Promise<void> {
 
   return callPlaid("removeItem", async () => {
     await plaid.itemRemove({ access_token: accessToken });
+  });
+}
+
+// Fetches the public JWK Plaid used to sign a webhook, looked up by the kid from
+// the webhook's JWT header. Only webhook.service calls this, and only on a cache
+// miss, so it stays a thin pass-through like the other SDK wrappers.
+export async function fetchWebhookVerificationKey(
+  kid: string
+): Promise<JWKPublicKey> {
+  return callPlaid("fetchWebhookVerificationKey", async () => {
+    const response = await plaid.webhookVerificationKeyGet({ key_id: kid });
+    return response.data.key;
   });
 }
