@@ -90,6 +90,7 @@ export async function createLinkToken(userId: string): Promise<{
       products: [Products.Transactions, Products.Liabilities],
       country_codes: [CountryCode.Us],
       language: "en",
+      webhook: process.env.PLAID_WEBHOOK_URL,
     });
 
     return{
