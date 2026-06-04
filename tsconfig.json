@@ -6,6 +6,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "react-native-plaid-link-sdk": [
+        "./node_modules/react-native-plaid-link-sdk/dist/src/index.d.ts"
       ]
     }
   },
