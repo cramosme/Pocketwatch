@@ -227,6 +227,28 @@ async function persistCursor(
   }
 }
 
+// Rebuilds the plaid_account_id to bank_account.id map from DB for an existing
+// item. Used by webhook-triggered syncs where there's no fresh Plaid payload.
+export async function loadAccountMap(plaidItemId: string): Promise<AccountMap> {
+  const { data, error } = await supabaseAdmin
+    .from("bank_accounts")
+    .select("id, plaid_account_id")
+    .eq("plaid_item_id", plaidItemId);
+
+  if (error || !data) {
+    throw new ServiceError(
+      "ACCOUNT_MAP_LOAD_FAILED",
+      `Could not load account map: ${error?.message}`
+    );
+  }
+
+  const map: AccountMap = new Map();
+  for (const row of data) {
+    map.set(row.plaid_account_id, row.id);
+  }
+  return map;
+}
+
 // Drives the cursor loop to completion. syncTransactions reads the stored cursor
 // from the DB on each call, so persisting it between pages is what advances the
 // loop and makes a mid-sync crash resume from the last saved page. Order per
@@ -241,6 +263,7 @@ export async function syncItemTransactions(
   try {
     let hasMore = true;
     let pages = 0;
+    let hasRefreshedAccounts = false;
 
     while (hasMore) {
       if (pages++ >= MAX_SYNC_PAGES) {
@@ -252,23 +275,46 @@ export async function syncItemTransactions(
 
       const page = await syncTransactions(plaidItemId);
 
-      // Map first; null means an account we don't have (a bug on initial sync,
-      // logged). filter(Boolean) won't narrow the type, so narrow explicitly.
       const added: TransactionInsert[] = [];
       for (const txn of page.added) {
-        const row = mapTransaction(txn, userId, accountMap);
+        let row = mapTransaction(txn, userId, accountMap);
+
         if (row) {
           added.push(row);
-        } else if (skippedAccountIds.has(txn.account_id)){
-          // Intentionally skipped account type(investment, loan)
+        } else if (skippedAccountIds.has(txn.account_id)) {
+          // Intentionally skipped account type (investment, loan)
+        } else if (!hasRefreshedAccounts) {
+          // Unknown account likely opened after initial sync. Pull a fresh
+          // account list from Plaid, upsert into DB, and merge the results into
+          // our working map + skip set so the rest of this sync sees them too.
+          const freshAccounts = await fetchAccounts(plaidItemId);
+          const refreshed = await populateAccounts(plaidItemId, userId, freshAccounts);
+          for (const [plaidId, dbId] of refreshed.accountMap) {
+            accountMap.set(plaidId, dbId);
+          }
+          for (const id of refreshed.skippedAccountIds) {
+            skippedAccountIds.add(id);
+          }
+          hasRefreshedAccounts = true;
+
+          // Retry this transaction with the updated map
+          row = mapTransaction(txn, userId, accountMap);
+          if (row) {
+            added.push(row);
+          } else if (skippedAccountIds.has(txn.account_id)) {
+            // check skipped again
+          } else {
+            console.error("[sync.service] transaction on unknown account after refresh", {
+              plaidAccountId: txn.account_id,
+              plaidTransactionId: txn.transaction_id,
+            });
+          }
         } else {
+          // Already refreshed this run, if still unknown, genuinely missing
           console.error("[sync.service] transaction on unknown account", {
             plaidAccountId: txn.account_id,
             plaidTransactionId: txn.transaction_id,
           });
-          // TODO(commit-4): once webhooks can surface a newly-opened account,
-          // re-call fetchAccounts on a miss and add it to the map instead of
-          // dropping the transaction (the cursor advances past it permanently).
         }
       }
 
@@ -286,8 +332,7 @@ export async function syncItemTransactions(
       hasMore = page.hasMore;
     }
 
-    // Success: stamp sync time and clear any prior error so mobile's retry
-    // UX resets.
+    // Success: stamp sync time and clear any prior error so mobile's retry UX resets.
     const { error } = await supabaseAdmin
       .from("plaid_items")
       .update({ last_synced: new Date().toISOString(), last_error: null })

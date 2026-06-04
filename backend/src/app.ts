@@ -3,7 +3,7 @@ import express, { Application } from 'express';
 import router from './gateway/router';
 import { errorHandler } from "./gateway/middleware/errorHandler";
 import { generalLimiter, webhookLimiter } from "./gateway/middleware/rateLimiter";
-import { verifyWebhook } from "./services/plaid/webhook.service";
+import { verifyWebhook, dispatchWebhook } from "./services/plaid/webhook.service";
 
 // Express application, this is the starting point of application logic 
 // that is served by the loop in server.ts. 
@@ -28,9 +28,9 @@ app.post(
     // so we never make it wait on the work that follows.
     res.sendStatus(200);
 
-    // Post-ack dispatch goes here (Commit 4b). It must own its own error
-    // handling — the response is already sent, so next() is no longer an option.
-    // await dispatchWebhook(payload);
+    // Post-ack dispatch. It must own its own error
+    // handling. the response is already sent, so next() is no longer an option.
+    await dispatchWebhook(payload);
   }
 );
 

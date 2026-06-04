@@ -4,6 +4,8 @@ import type { JWKPublicKey } from "plaid";
 import { fetchWebhookVerificationKey } from "./plaid.service";
 import { ServiceError } from "../../lib/errors";
 import type { PlaidWebhookPayload } from "../../types/plaid";
+import { supabaseAdmin } from "../../database/supabase";
+import { loadAccountMap, syncItemTransactions } from "./sync.service";
 
 // Plaid signs each webhook with an ES256 JWT in the Plaid-Verification header.
 // The JWT carries a request_body_sha256 claim, so verifying it proves two things:
@@ -138,4 +140,64 @@ export async function verifyWebhook(
 
   // Authenticated bytes — only now is JSON.parse operating on trusted input.
   return JSON.parse(rawBody.toString("utf8")) as PlaidWebhookPayload;
+}
+
+// Routes a verified webhook to the right side effect. Runs AFTER the 200 ack,
+// so there's no response to fail. errors are caught, logged, and written to
+// the item's last_error. Never throws.
+export async function dispatchWebhook(
+  payload: PlaidWebhookPayload
+): Promise<void> {
+  try {
+    // Resolve our DB row. If the item_id doesn't match (deleted item, stale
+    // webhook from Plaid), there's nothing to act on.
+    const { data: item, error } = await supabaseAdmin
+      .from("plaid_items")
+      .select("id, user_id")
+      .eq("item_id", payload.item_id)
+      .single();
+
+    if (error || !item) {
+      console.warn("[webhook] no plaid_item for item_id", payload.item_id);
+      return;
+    }
+
+    switch (payload.webhook_code) {
+      case "SYNC_UPDATES_AVAILABLE": {
+        // Incremental sync
+        // loadAccountMap rebuilds from DB; if a new account appears mid-sync, the refresh
+        // logic inside syncItemTransactions handles it.
+        const accountMap = await loadAccountMap(item.id);
+        await syncItemTransactions(item.id, item.user_id, accountMap, new Set());
+        break;
+      }
+
+      case "ERROR": {
+        // Item-level error (expired login, revoked consent, etc). Write to
+        // last_error so mobile can surface a reconnect prompt.
+        const errorPayload = "error" in payload ? payload.error : null;
+        const errorCode = errorPayload?.error_code ?? "ITEM_ERROR";
+
+        await supabaseAdmin
+          .from("plaid_items")
+          .update({ last_error: errorCode })
+          .eq("id", item.id);
+
+        console.error("[webhook] item error", {
+          itemId: item.id,
+          errorCode,
+          errorMessage: errorPayload?.error_message,
+        });
+        break;
+      }
+
+      default:
+        // Authenticated but unhandled. Log so we can spot codes worth modeling.
+        console.log("[webhook] unhandled code", payload.webhook_code);
+    }
+  } catch (err) {
+    // syncItemTransactions already writes last_error and rethrows; this catch
+    // absorbs the rethrow so it doesn't become an unhandled rejection.
+    console.error("[webhook] dispatch failed", payload.webhook_code, err);
+  }
 }
