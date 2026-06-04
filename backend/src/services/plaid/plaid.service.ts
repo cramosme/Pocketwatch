@@ -91,6 +91,7 @@ export async function createLinkToken(userId: string): Promise<{
       country_codes: [CountryCode.Us],
       language: "en",
       webhook: process.env.PLAID_WEBHOOK_URL,
+      android_package_name: "com.crillo.pocketwatch",
     });
 
     return{

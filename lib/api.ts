@@ -11,7 +11,7 @@ export async function api(path: string, options?: RequestInit) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(options?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       'Authorization': `Bearer ${session?.access_token}`,
       ...options?.headers,
     },
