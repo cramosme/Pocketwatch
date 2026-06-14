@@ -11,6 +11,8 @@ import type {
   PlaidTransaction,
 } from "../../types/plaid";
 import type { Database } from "../../types/database";
+import { normalizeMerchantName } from "../rules/normalize.service";
+import { categorizeTransactions } from "../rules/ruleEngine.service";
 
 type BankAccountInsert = Database["public"]["Tables"]["bank_accounts"]["Insert"];
 type CreditCardInsert = Database["public"]["Tables"]["credit_card_details"]["Insert"];
@@ -160,24 +162,29 @@ function mapTransaction(
     // unrecognized merchants. `name` has no non-deprecated equivalent for the
     // raw description on /transactions/sync, so this fallback is intentional.
     merchant_name: transaction.merchant_name ?? transaction.name,
+    merchant_name_normalized: normalizeMerchantName(transaction.merchant_name ?? transaction.name),
     plaid_category: transaction.personal_finance_category?.detailed ?? null,
     is_pending: transaction.pending,
+    categorized_at: null,
   };
 }
 
-// Batch upsert keyed on plaid_transaction_id (so it can be re-runnable)
+// Batch upsert keyed on plaid_transaction_id (so it can be re-runnable).
+// Returns the DB ids of rows that were actually written so downstream
+// processing (rule engine) knows exactly which transactions to categorize.
 async function upsertTransactions(
   rows: TransactionInsert[],
   update: boolean
-): Promise<void> {
-  if(rows.length === 0) return;
+): Promise<string[]> {
+  if(rows.length === 0) return [];
 
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("transactions")
     .upsert(rows, {
       onConflict: "plaid_transaction_id",
       ignoreDuplicates: !update,
-    });
+    })
+    .select("id");
 
   if( error ){
     throw new ServiceError(
@@ -185,6 +192,8 @@ async function upsertTransactions(
       `Could not write transactions: ${error.message}`
     );
   }
+
+  return (data ?? []).map((r) => r.id);
 }
 
 // Soft-delete: Plaid says these transactions no longer exist, but for consistent
@@ -330,6 +339,33 @@ export async function syncItemTransactions(
 
       await persistCursor(plaidItemId, page.nextCursor);
       hasMore = page.hasMore;
+    }
+
+    // Categorize everything still pending for this user. Driven by a durable DB
+    // query (categorized_at IS NULL) rather than an in-memory list of this run's
+    // upserts, so a crash anywhere — including after the cursor fully advanced but
+    // before categorization ran — is recovered on the next sync: those rows are
+    // still unstamped and get swept here. Also backfills rows orphaned by an
+    // earlier crash. categorizeTransactions stamps categorized_at on success.
+    const { data: pending, error: pendingError } = await supabaseAdmin
+      .from("transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .is("categorized_at", null)
+      .is("removed_at", null);
+
+    if (pendingError) {
+      throw new ServiceError(
+        "CATEGORIZE_QUEUE_LOAD_FAILED",
+        `Could not load uncategorized transactions: ${pendingError.message}`
+      );
+    }
+
+    if (pending && pending.length > 0) {
+      await categorizeTransactions(
+        pending.map((r) => r.id),
+        userId
+      );
     }
 
     // Success: stamp sync time and clear any prior error so mobile's retry UX resets.

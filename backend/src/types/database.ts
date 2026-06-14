@@ -640,6 +640,7 @@ export type Database = {
         Row: {
           account_id: string
           amount: number
+          categorized_at: string | null
           created_at: string | null
           custom_category: string | null
           date: string
@@ -665,6 +666,7 @@ export type Database = {
         Insert: {
           account_id: string
           amount: number
+          categorized_at?: string | null
           created_at?: string | null
           custom_category?: string | null
           date: string
@@ -690,6 +692,7 @@ export type Database = {
         Update: {
           account_id?: string
           amount?: number
+          categorized_at?: string | null
           created_at?: string | null
           custom_category?: string | null
           date?: string
